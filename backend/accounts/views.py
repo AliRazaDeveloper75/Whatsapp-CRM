@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import User
 from .permissions import IsAdmin
-from .serializers import AgentCreateSerializer, CRMTokenObtainPairSerializer, UserSerializer
+from .serializers import AgentCreateSerializer, CRMTokenObtainPairSerializer, UserCreateSerializer, UserSerializer
 
 
 class CRMTokenObtainPairView(TokenObtainPairView):
@@ -28,4 +28,16 @@ class AgentViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return AgentCreateSerializer
+        return UserSerializer
+
+
+class UserListViewSet(viewsets.ModelViewSet):
+    """Admin-only: view and create user accounts of any role, including admin."""
+
+    queryset = User.objects.all().order_by("username")
+    permission_classes = [IsAdmin]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserCreateSerializer
         return UserSerializer

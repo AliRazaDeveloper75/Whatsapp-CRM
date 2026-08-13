@@ -2,40 +2,14 @@
 
 import { useCallback, useEffect, useState, type SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CheckCheck, Clock, LogOut, Send, X } from "lucide-react";
+import { LogOut, Send } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
 import { Logo } from "@/components/ui/Logo";
-
-type ChatSummary = {
-  id: number;
-  lead: { id: number; name: string; phone_number: string };
-  status: string;
-  last_message_at: string | null;
-};
-
-type Message = {
-  id: number;
-  direction: "in" | "out";
-  body: string;
-  delivery_status: string;
-  sent_at: string;
-};
-
-type ChatDetail = ChatSummary & { messages: Message[] };
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function DeliveryIcon({ status }: { status: string }) {
-  if (status === "read") return <CheckCheck size={13} style={{ color: "var(--indigo-strong)" }} />;
-  if (status === "delivered") return <CheckCheck size={13} />;
-  if (status === "sent") return <Check size={13} />;
-  if (status === "failed") return <X size={13} style={{ color: "var(--danger)" }} />;
-  return <Clock size={12} />;
-}
+import { DeliveryIcon } from "@/components/ui/DeliveryIcon";
+import { formatTime } from "@/lib/format";
+import type { ChatDetail, ChatRow as ChatSummary } from "@/types/admin";
 
 export default function AgentPage() {
   const { user, loading, logout } = useAuth();

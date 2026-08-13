@@ -29,37 +29,6 @@
   --shadow-lg: 0 12px 32px rgba(20, 23, 31, 0.12);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0c0e13;
-    --surface: #14171f;
-    --surface-2: #1a1e28;
-    --border: #262b37;
-    --text: #edeef2;
-    --text-muted: #9aa1ad;
-    --text-faint: #666e7d;
-
-    --teal: #2dd4bf;
-    --teal-soft: #10302c;
-    --teal-strong: #5eead4;
-
-    --indigo: #818cf8;
-    --indigo-soft: #221f3d;
-    --indigo-strong: #a5b0fb;
-
-    --success: #34d399;
-    --success-soft: #0f2b22;
-    --warning: #fbbf24;
-    --warning-soft: #2e2109;
-    --danger: #f87171;
-    --danger-soft: #331615;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
-  }
-}
-
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
