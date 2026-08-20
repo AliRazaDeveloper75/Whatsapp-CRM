@@ -16,8 +16,9 @@
 set -e
 
 # --- Config ------------------------------------------------------------------
-COMPOSE_FILE="docker/docker-compose.prod.yml"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+COMPOSE_FILE="$APP_DIR/docker/docker-compose.prod.yml"
+ENV_FILE="$APP_DIR/.env.production"
 BRANCH="main"
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
 
@@ -63,33 +64,33 @@ success "Code updated"
 
 # 2. Build new images (without stopping running containers)
 log "Building Docker images..."
-docker compose -f "$COMPOSE_FILE" build --no-cache web celery_worker celery_beat
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache web celery_worker celery_beat
 success "Images built"
 
 # 3. Apply database migrations (run in temp container, DB stays up)
 log "Running database migrations..."
-docker compose -f "$COMPOSE_FILE" run --rm \
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" run --rm \
     -e DJANGO_SETTINGS_MODULE=config.settings \
     web python manage.py migrate --noinput
 success "Migrations applied"
 
 # 4. Collect static files
 log "Collecting static files..."
-docker compose -f "$COMPOSE_FILE" run --rm \
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" run --rm \
     web python manage.py collectstatic --noinput --clear
 success "Static files collected"
 
 # 5. Restart services (one by one to minimize downtime)
 log "Restarting web service..."
-docker compose -f "$COMPOSE_FILE" up -d --no-deps web
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps web
 success "Web restarted"
 
 log "Restarting celery_worker..."
-docker compose -f "$COMPOSE_FILE" up -d --no-deps celery_worker
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps celery_worker
 success "Celery worker restarted"
 
 log "Restarting celery_beat..."
-docker compose -f "$COMPOSE_FILE" up -d --no-deps celery_beat
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-deps celery_beat
 success "Celery beat restarted"
 
 # 6. Wait and verify web is healthy

@@ -74,7 +74,7 @@ success "Safety backup saved: $SAFETY_FILE"
 
 # --- Stop web services (keep DB running) -------------------------------------
 log "Stopping web, celery_worker, celery_beat..."
-docker compose -f "$APP_DIR/docker/docker-compose.prod.yml" stop web celery_worker celery_beat
+docker compose -f "$APP_DIR/docker/docker-compose.prod.yml" --env-file "$APP_DIR/.env.production" stop web celery_worker celery_beat
 
 # --- Drop and recreate database ----------------------------------------------
 log "Dropping database $DB_NAME..."
@@ -94,7 +94,7 @@ success "Database restored!"
 
 # --- Restart services --------------------------------------------------------
 log "Restarting services..."
-docker compose -f "$APP_DIR/docker/docker-compose.prod.yml" start web celery_worker celery_beat
+docker compose -f "$APP_DIR/docker/docker-compose.prod.yml" --env-file "$APP_DIR/.env.production" start web celery_worker celery_beat
 
 echo ""
 success "Restore complete!"

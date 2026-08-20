@@ -13,6 +13,7 @@
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$APP_DIR/docker/docker-compose.prod.yml"
+ENV_FILE="$APP_DIR/.env.production"
 SERVICE=""
 FOLLOW=false
 LINES=50
@@ -32,7 +33,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # --- Build command -----------------------------------------------------------
-CMD="docker compose -f $COMPOSE_FILE logs --tail=$LINES"
+CMD="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE logs --tail=$LINES"
 
 if [ "$FOLLOW" = true ]; then
     CMD="$CMD --follow"
