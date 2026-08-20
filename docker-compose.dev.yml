@@ -1,0 +1,128 @@
+# =============================================================================
+# docker-compose.dev.yml — WhatsApp CRM Local Development Stack
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up        # start all
+#   docker compose -f docker-compose.dev.yml up -d     # start detached
+#   docker compose -f docker-compose.dev.yml down       # stop all
+#   docker compose -f docker-compose.dev.yml logs -f web  # live logs
+#
+# NOTE: Django runserver runs inside container with hot-reload via volume mount.
+#       No Nginx needed in dev — Django dev server handles everything.
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — local dev database
+  # Exposed on host port 5433 so you can connect via DBeaver/pgAdmin locally
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: crm_dev_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: whatsapp_crm_dev
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_password
+    ports:
+      - "5433:5432"       # host:container (5433 to avoid conflict with local postgres)
+    volumes:
+      - dev_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm_user -d whatsapp_crm_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis — local broker for Celery + Channels
+  # Exposed on host port 6379 so you can inspect with redis-cli locally
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: crm_dev_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - dev_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Web — Django development server with hot-reload
+  # Source code mounted as volume so changes reflect instantly without rebuild
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: final           # reuses the same Dockerfile, final stage
+    container_name: crm_dev_web
+    restart: unless-stopped
+    entrypoint: []            # override entrypoint.sh — no gunicorn in dev
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_ENGINE: postgres
+      DB_NAME: whatsapp_crm_dev
+      DB_USER: crm_user
+      DB_PASSWORD: crm_password
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "True"
+    volumes:
+      - ./backend:/app       # hot-reload: local changes reflected instantly
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker — processes background tasks in dev
+  # ---------------------------------------------------------------------------
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: final
+    container_name: crm_dev_celery_worker
+    restart: unless-stopped
+    entrypoint: []
+    command: celery -A config.celery worker --loglevel=info --concurrency=2
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_ENGINE: postgres
+      DB_NAME: whatsapp_crm_dev
+      DB_USER: crm_user
+      DB_PASSWORD: crm_password
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "True"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  dev_postgres_data:
+    name: whatsapp_crm_dev_postgres
+  dev_redis_data:
+    name: whatsapp_crm_dev_redis
