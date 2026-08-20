@@ -1,0 +1,13 @@
+# =============================================================================
+# DEVELOPMENT REQUIREMENTS — extends base.txt, local dev only
+# =============================================================================
+-r base.txt
+
+# Interactive debugger
+ipython==8.37.0
+
+# Django debug toolbar (shows queries, cache, templates in browser)
+django-debug-toolbar==5.2.0
+
+# Auto-reload on file change (alternative to runserver)
+watchdog==6.0.0

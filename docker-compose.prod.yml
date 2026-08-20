@@ -1,0 +1,173 @@
+# =============================================================================
+# docker-compose.prod.yml — WhatsApp CRM Production Stack
+#
+# Services:  db, redis, web (Gunicorn), celery_worker, celery_beat
+# NO Nginx here — we share Inventory_Portal's Nginx via proxy_network.
+#
+# Networks:
+#   crm_internal  — private, only CRM services talk to each other
+#   proxy_network — external shared network; Inventory Portal's Nginx reaches "web"
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — production database
+  # Isolated: only reachable from web, celery_worker, celery_beat
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: whatsapp_crm_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - crm_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Redis — Celery broker + Django Channels layer
+  # Isolated: only reachable from web, celery_worker, celery_beat
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: whatsapp_crm_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - crm_internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Web — Django + Gunicorn (main API server)
+  # Reachable from Nginx via proxy_network on port 8000 (internal only)
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: final
+    container_name: whatsapp_crm_web
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/mediafiles
+    networks:
+      - crm_internal
+      - proxy_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/auth/login/')\" 2>/dev/null || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ---------------------------------------------------------------------------
+  # Celery Worker — processes background tasks (e.g. WhatsApp message sending)
+  # Same image as web, different command
+  # ---------------------------------------------------------------------------
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: final
+    container_name: whatsapp_crm_celery_worker
+    restart: unless-stopped
+    entrypoint: []
+    command: >
+      celery -A config.celery worker
+      --loglevel=info
+      --concurrency=4
+      --max-tasks-per-child=100
+    env_file:
+      - .env.production
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    networks:
+      - crm_internal
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Celery Beat — periodic task scheduler (cron-like)
+  # Only ONE instance should ever run to avoid duplicate scheduled tasks
+  # ---------------------------------------------------------------------------
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: final
+    container_name: whatsapp_crm_celery_beat
+    restart: unless-stopped
+    entrypoint: []
+    command: >
+      celery -A config.celery beat
+      --loglevel=info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env.production
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    networks:
+      - crm_internal
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+# =============================================================================
+# Volumes — persistent data survives container restarts
+# =============================================================================
+volumes:
+  postgres_data:
+    name: whatsapp_crm_postgres_data
+  redis_data:
+    name: whatsapp_crm_redis_data
+  static_files:
+    name: whatsapp_crm_static_files
+  media_files:
+    name: whatsapp_crm_media_files
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  crm_internal:
+    name: whatsapp_crm_internal
+    driver: bridge
+    internal: true        # DB and Redis completely unreachable from outside
+
+  proxy_network:
+    name: proxy_network
+    external: true        # Must be created manually: docker network create proxy_network
