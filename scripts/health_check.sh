@@ -103,8 +103,16 @@ warn "Redis memory used: $REDIS_MEM"
 section "Django API (internal)"
 
 API_CODE=$(docker exec whatsapp_crm_web \
-    python -c "import urllib.request; r=urllib.request.urlopen('http://localhost:8000/api/auth/login/'); print(r.getcode())" \
-    2>/dev/null || echo "error")
+    python -c "
+import urllib.request, urllib.error
+try:
+    r = urllib.request.urlopen('http://localhost:8000/api/auth/login/')
+    print(r.getcode())
+except urllib.error.HTTPError as e:
+    print(e.code)
+except Exception:
+    print('error')
+" 2>/dev/null)
 
 if [ "$API_CODE" = "200" ] || [ "$API_CODE" = "400" ] || [ "$API_CODE" = "405" ]; then
     ok "Django API reachable (HTTP $API_CODE)"
