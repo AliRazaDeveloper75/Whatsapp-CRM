@@ -151,6 +151,28 @@ services:
       redis:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # Next.js Frontend — qomunix.com
+  # Reachable from Nginx via proxy_network on port 3000 (internal only)
+  # ---------------------------------------------------------------------------
+  nextjs:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: https://api.qomunix.com/api
+    container_name: whatsapp_crm_nextjs
+    restart: unless-stopped
+    networks:
+      - proxy_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 # =============================================================================
 # Volumes — persistent data survives container restarts
 # =============================================================================
