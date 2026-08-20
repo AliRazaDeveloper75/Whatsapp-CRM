@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { tokenStorage } from "@/lib/tokenStorage";
 
 export type Role = "admin" | "agent";
 
@@ -18,7 +19,7 @@ export type User = {
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, remember?: boolean) => Promise<void>;
   logout: () => void;
 };
 
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    const token = tokenStorage.getAccess();
     if (!token) {
       setLoading(false);
       return;
@@ -38,28 +39,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api
       .get<User>("/me/")
       .then((res) => setUser(res.data))
-      .catch(() => {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-      })
+      .catch(() => tokenStorage.clear())
       .finally(() => setLoading(false));
   }, []);
 
-  async function login(username: string, password: string) {
+  async function login(username: string, password: string, remember = true) {
     const res = await api.post<{ access: string; refresh: string }>("/auth/login/", {
       username,
       password,
     });
-    localStorage.setItem("access_token", res.data.access);
-    localStorage.setItem("refresh_token", res.data.refresh);
+    tokenStorage.save(res.data.access, res.data.refresh, remember);
     const me = await api.get<User>("/me/");
     setUser(me.data);
     router.push(me.data.role === "admin" ? "/admin" : "/agent");
   }
 
   function logout() {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    tokenStorage.clear();
     setUser(null);
     router.push("/login");
   }

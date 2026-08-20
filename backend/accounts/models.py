@@ -15,5 +15,10 @@ class User(AbstractUser):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.OFFLINE)
     phone_number = models.CharField(max_length=20, blank=True)
 
+    def save(self, *args, **kwargs):
+        if self.is_superuser:
+            self.role = self.Role.ADMIN
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.username} ({self.role})"

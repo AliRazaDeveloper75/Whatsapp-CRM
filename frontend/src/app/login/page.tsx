@@ -9,6 +9,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -17,7 +18,7 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      await login(username, password);
+      await login(username, password, remember);
     } catch {
       setError("Invalid username or password.");
     } finally {
@@ -78,6 +79,7 @@ export default function LoginPage() {
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter your username"
             className="w-full rounded-lg border py-2.5 pl-9 pr-3 text-sm outline-none transition-colors focus:border-[var(--teal)]"
             style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
             autoComplete="username"
@@ -88,7 +90,7 @@ export default function LoginPage() {
         <label className="mb-1.5 block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
           Password
         </label>
-        <div className="relative mb-7">
+        <div className="relative mb-4">
           <Lock
             size={16}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
@@ -98,12 +100,24 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
             className="w-full rounded-lg border py-2.5 pl-9 pr-3 text-sm outline-none transition-colors focus:border-[var(--teal)]"
             style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
             autoComplete="current-password"
             required
           />
         </div>
+
+        <label className="mb-7 flex cursor-pointer items-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="h-4 w-4 rounded accent-current"
+            style={{ color: "var(--teal)" }}
+          />
+          Remember me
+        </label>
 
         <button
           type="submit"

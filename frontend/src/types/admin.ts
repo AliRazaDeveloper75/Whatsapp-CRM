@@ -17,6 +17,7 @@ export type ChatRow = {
 
 export type Message = {
   id: number;
+  chat: number;
   direction: "in" | "out";
   body: string;
   delivery_status: string;
