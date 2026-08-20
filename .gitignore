@@ -20,6 +20,7 @@ backend/media/
 .env.*
 !.env.example
 !.env.production.template
+!frontend/.env.production
 
 # =============================================================================
 # Docker
