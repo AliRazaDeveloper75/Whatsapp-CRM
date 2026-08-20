@@ -17,7 +17,7 @@
 # =============================================================================
 
 DOMAIN=""
-COMPOSE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/docker-compose.prod.yml"
+COMPOSE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/docker/docker-compose.prod.yml"
 ALL_OK=true
 
 # --- Colors ------------------------------------------------------------------

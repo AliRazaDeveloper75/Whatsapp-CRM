@@ -1,11 +1,11 @@
 # =============================================================================
 # docker-compose.dev.yml — WhatsApp CRM Local Development Stack
 #
-# Usage:
-#   docker compose -f docker-compose.dev.yml up        # start all
-#   docker compose -f docker-compose.dev.yml up -d     # start detached
-#   docker compose -f docker-compose.dev.yml down       # stop all
-#   docker compose -f docker-compose.dev.yml logs -f web  # live logs
+# Usage (run from project root):
+#   docker compose -f docker/docker-compose.dev.yml up
+#   docker compose -f docker/docker-compose.dev.yml up -d
+#   docker compose -f docker/docker-compose.dev.yml down
+#   docker compose -f docker/docker-compose.dev.yml logs -f web
 #
 # NOTE: Django runserver runs inside container with hot-reload via volume mount.
 #       No Nginx needed in dev — Django dev server handles everything.
@@ -59,15 +59,15 @@ services:
   # ---------------------------------------------------------------------------
   web:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
-      target: final           # reuses the same Dockerfile, final stage
+      target: final
     container_name: crm_dev_web
     restart: unless-stopped
     entrypoint: []            # override entrypoint.sh — no gunicorn in dev
     command: python manage.py runserver 0.0.0.0:8000
     env_file:
-      - ./backend/.env
+      - ../backend/.env
     environment:
       DB_ENGINE: postgres
       DB_NAME: whatsapp_crm_dev
@@ -78,7 +78,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       DEBUG: "True"
     volumes:
-      - ./backend:/app       # hot-reload: local changes reflected instantly
+      - ../backend:/app       # hot-reload: local changes reflected instantly
     ports:
       - "8000:8000"
     depends_on:
@@ -92,7 +92,7 @@ services:
   # ---------------------------------------------------------------------------
   celery_worker:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
       target: final
     container_name: crm_dev_celery_worker
@@ -100,7 +100,7 @@ services:
     entrypoint: []
     command: celery -A config.celery worker --loglevel=info --concurrency=2
     env_file:
-      - ./backend/.env
+      - ../backend/.env
     environment:
       DB_ENGINE: postgres
       DB_NAME: whatsapp_crm_dev
@@ -111,7 +111,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       DEBUG: "True"
     volumes:
-      - ./backend:/app
+      - ../backend:/app
     depends_on:
       db:
         condition: service_healthy

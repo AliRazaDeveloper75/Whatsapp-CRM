@@ -7,6 +7,9 @@
 # Networks:
 #   crm_internal  — private, only CRM services talk to each other
 #   proxy_network — external shared network; Inventory Portal's Nginx reaches "web"
+#
+# Usage (run from project root):
+#   docker compose -f docker/docker-compose.prod.yml up -d --build
 # =============================================================================
 
 services:
@@ -59,13 +62,13 @@ services:
   # ---------------------------------------------------------------------------
   web:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
       target: final
     container_name: whatsapp_crm_web
     restart: unless-stopped
     env_file:
-      - .env.production
+      - ../.env.production
     environment:
       DB_HOST: db
       REDIS_URL: redis://redis:6379/0
@@ -93,7 +96,7 @@ services:
   # ---------------------------------------------------------------------------
   celery_worker:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
       target: final
     container_name: whatsapp_crm_celery_worker
@@ -105,7 +108,7 @@ services:
       --concurrency=4
       --max-tasks-per-child=100
     env_file:
-      - .env.production
+      - ../.env.production
     environment:
       DB_HOST: db
       REDIS_URL: redis://redis:6379/0
@@ -123,7 +126,7 @@ services:
   # ---------------------------------------------------------------------------
   celery_beat:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
       target: final
     container_name: whatsapp_crm_celery_beat
@@ -134,7 +137,7 @@ services:
       --loglevel=info
       --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
-      - .env.production
+      - ../.env.production
     environment:
       DB_HOST: db
       REDIS_URL: redis://redis:6379/0

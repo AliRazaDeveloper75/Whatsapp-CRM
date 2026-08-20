@@ -12,7 +12,7 @@
 # =============================================================================
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
+COMPOSE_FILE="$APP_DIR/docker/docker-compose.prod.yml"
 SERVICE=""
 FOLLOW=false
 LINES=50
