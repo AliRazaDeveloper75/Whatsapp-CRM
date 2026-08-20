@@ -20,6 +20,7 @@ daphne==4.2.3
 # Task Queue
 celery==5.6.3
 redis==8.1.0
+django-celery-beat==2.7.0
 
 # HTTP client (Meta WhatsApp API calls)
 requests==2.34.2
