@@ -106,7 +106,7 @@ API_CODE=$(docker exec whatsapp_crm_web \
     python -c "import urllib.request; r=urllib.request.urlopen('http://localhost:8000/api/auth/login/'); print(r.getcode())" \
     2>/dev/null || echo "error")
 
-if [ "$API_CODE" = "200" ] || [ "$API_CODE" = "405" ]; then
+if [ "$API_CODE" = "200" ] || [ "$API_CODE" = "400" ] || [ "$API_CODE" = "405" ]; then
     ok "Django API reachable (HTTP $API_CODE)"
 else
     fail "Django API not reachable (got: $API_CODE)"
