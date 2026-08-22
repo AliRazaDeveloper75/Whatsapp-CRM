@@ -1,0 +1,56 @@
+# =============================================================================
+# .dockerignore — prevents these from being sent to Docker build context
+# Smaller context = faster builds, no secrets leaked into image
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+.github
+
+# Python cache & compiled files
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments — never copy into Docker
+venv/
+.venv/
+env/
+ENV/
+
+# Environment files — never bake secrets into image
+.env
+.env.*
+!.env.example
+
+# Django local files
+db.sqlite3
+*.sqlite3
+
+# Static/media — generated at runtime by collectstatic
+staticfiles/
+mediafiles/
+
+# Development & test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Editor & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Node (frontend — not part of backend build)
+node_modules/
+
+# Documentation
+*.md
+docs/

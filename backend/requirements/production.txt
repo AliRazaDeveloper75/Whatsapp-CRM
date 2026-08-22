@@ -1,0 +1,10 @@
+# =============================================================================
+# PRODUCTION REQUIREMENTS — extends base.txt, VPS/Docker only
+# =============================================================================
+-r base.txt
+
+# WSGI server — serves Django in production behind Nginx
+gunicorn==23.0.0
+
+# Health check / process monitoring support
+setproctitle==1.3.6
