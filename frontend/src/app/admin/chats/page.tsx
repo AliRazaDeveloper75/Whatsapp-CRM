@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type SubmitEvent } from "react";
-import { Send } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -15,6 +15,7 @@ export default function AdminChatsPage() {
   const [activeChat, setActiveChat] = useState<ChatDetail | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const loadChats = useCallback(() => {
     api.get<ChatRow[]>("/chats/").then((res) => {
@@ -37,8 +38,28 @@ export default function AdminChatsPage() {
     if (activeId === null) return;
     loadActive(activeId);
     const t = setInterval(() => loadActive(activeId), 4000);
+    setChats((prev) => prev.map((c) => (c.id === activeId ? { ...c, has_unread: false } : c)));
+    api.post(`/chats/${activeId}/mark_read/`).catch(() => {});
     return () => clearInterval(t);
   }, [activeId, loadActive]);
+
+  function selectChat(id: number) {
+    setActiveId(id);
+  }
+
+  async function deleteChat() {
+    if (!activeId) return;
+    if (!window.confirm("Delete this chat and all its messages? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/chats/${activeId}/`);
+      setChats((prev) => prev.filter((c) => c.id !== activeId));
+      setActiveChat(null);
+      setActiveId(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function sendReply(e: SubmitEvent) {
     e.preventDefault();
@@ -84,14 +105,21 @@ export default function AdminChatsPage() {
             return (
               <button
                 key={chat.id}
-                onClick={() => setActiveId(chat.id)}
+                onClick={() => selectChat(chat.id)}
                 className="flex items-center gap-3 px-3 py-2.5 text-left transition-colors"
                 style={{ background: isActive ? "var(--indigo-soft)" : "transparent" }}
               >
                 <Avatar name={name} size={36} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>
-                    {name}
+                  <p className="flex items-center gap-1.5 truncate text-sm font-medium" style={{ color: "var(--text)" }}>
+                    {chat.has_unread && (
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: "var(--indigo)" }}
+                        title="New message"
+                      />
+                    )}
+                    <span className="truncate">{name}</span>
                   </p>
                   <p className="truncate text-xs" style={{ color: "var(--text-faint)" }}>
                     {chat.assigned_user_username ?? "Unassigned"}
@@ -125,6 +153,15 @@ export default function AdminChatsPage() {
                   </p>
                 </div>
                 <StatusPill status={activeChat.status} />
+                <button
+                  onClick={deleteChat}
+                  disabled={deleting}
+                  title="Delete chat"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:opacity-70 disabled:opacity-40"
+                  style={{ color: "var(--danger)" }}
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
 
               <div

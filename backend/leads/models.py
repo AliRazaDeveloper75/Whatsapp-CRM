@@ -36,6 +36,7 @@ class Chat(models.Model):
     )
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.UNASSIGNED)
     last_message_at = models.DateTimeField(null=True, blank=True)
+    last_read_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Chat #{self.pk} — {self.lead}"

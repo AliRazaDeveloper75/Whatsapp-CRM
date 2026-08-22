@@ -28,6 +28,7 @@ class ChatSerializer(serializers.ModelSerializer):
     lead = LeadSerializer(read_only=True)
     lead_id = serializers.PrimaryKeyRelatedField(source="lead", queryset=Lead.objects.all(), write_only=True)
     assigned_user_username = serializers.CharField(source="assigned_user.username", read_only=True, default=None)
+    has_unread = serializers.SerializerMethodField()
 
     class Meta:
         model = Chat
@@ -39,8 +40,14 @@ class ChatSerializer(serializers.ModelSerializer):
             "assigned_user_username",
             "status",
             "last_message_at",
+            "has_unread",
         ]
         read_only_fields = ["id", "assigned_user", "status", "last_message_at"]
+
+    def get_has_unread(self, obj):
+        if not obj.last_message_at:
+            return False
+        return obj.last_read_at is None or obj.last_message_at > obj.last_read_at
 
 
 class ChatDetailSerializer(ChatSerializer):

@@ -13,6 +13,8 @@ export type ChatRow = {
   assigned_user: number | null;
   assigned_user_username: string | null;
   status: string;
+  last_message_at: string | null;
+  has_unread: boolean;
 };
 
 export type Message = {

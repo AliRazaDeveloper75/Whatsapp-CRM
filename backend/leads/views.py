@@ -1,4 +1,5 @@
 import requests
+from django.utils import timezone
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -45,6 +46,14 @@ class ChatViewSet(viewsets.ModelViewSet):
         if self.action == "retrieve":
             return ChatDetailSerializer
         return ChatSerializer
+
+    @action(detail=True, methods=["post"])
+    def mark_read(self, request, pk=None):
+        """Mark this chat as read by the current viewer."""
+        chat = self.get_object()
+        chat.last_read_at = timezone.now()
+        chat.save(update_fields=["last_read_at"])
+        return Response(ChatSerializer(chat).data)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdmin])
     def assign(self, request, pk=None):
