@@ -10,9 +10,19 @@ class Tag(models.Model):
 
 
 class Lead(models.Model):
+    class ClientStatus(models.TextChoices):
+        FIRST_TIME = "first_time", "First time"
+        FOLLOW_UP = "follow_up", "Follow up"
+        EXISTING = "existing_client", "Existing client"
+
     name = models.CharField(max_length=150, blank=True)
+    company_name = models.CharField(max_length=150, blank=True)
+    email = models.EmailField(blank=True)
     phone_number = models.CharField(max_length=20, unique=True)
     source = models.CharField(max_length=100, blank=True)
+    client_status = models.CharField(
+        max_length=20, choices=ClientStatus.choices, default=ClientStatus.FIRST_TIME
+    )
     tags = models.ManyToManyField(Tag, blank=True, related_name="leads")
     created_at = models.DateTimeField(auto_now_add=True)
 

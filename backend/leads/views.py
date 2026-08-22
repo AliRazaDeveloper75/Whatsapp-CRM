@@ -5,7 +5,7 @@ from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from accounts.models import User
+from accounts.permissions import IsAdmin
 
 from .models import Chat, Lead, Message, Tag
 from .serializers import ChatDetailSerializer, ChatSerializer, LeadSerializer, MessageSerializer, TagSerializer
@@ -63,41 +63,41 @@ class ChatViewSet(viewsets.ModelViewSet):
         chat.save(update_fields=["last_read_at"])
         return Response(ChatSerializer(chat).data)
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdmin])
     def assign(self, request, pk=None):
-        """Admin: assign to anyone. Team Lead: assign within their own team only."""
+        """Admin-only: assign (or unassign with user_id=null) a chat to an agent."""
         chat = self.get_object()
-        user = request.user
         user_id = request.data.get("user_id")
-
-        if user.role not in ("admin", "tl"):
-            return Response({"detail": "Not allowed."}, status=403)
-
-        if user.role == "tl" and user_id:
-            in_team = User.objects.filter(id=user_id).filter(Q(id=user.id) | Q(team_lead=user)).exists()
-            if not in_team:
-                return Response({"detail": "Can only assign chats within your own team."}, status=403)
-
         chat.assigned_user_id = user_id
         chat.status = Chat.Status.IN_PROGRESS if user_id else Chat.Status.UNASSIGNED
         chat.save(update_fields=["assigned_user", "status"])
         return Response(ChatSerializer(chat).data)
 
-    @action(detail=False, methods=["post"])
+    @action(detail=False, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdmin])
     def start(self, request):
-        """Agent/TL: add a new contact and start (or claim) its chat."""
+        """Admin-only: add a new contact and open its chat."""
         phone_number = (request.data.get("phone_number") or "").strip()
-        name = (request.data.get("name") or "").strip()
         if not phone_number:
             return Response({"detail": "phone_number is required."}, status=400)
 
-        lead, _ = Lead.objects.get_or_create(
-            phone_number=phone_number, defaults={"name": name, "source": "manual"}
-        )
-        chat, created = Chat.objects.get_or_create(
+        lead_fields = {
+            "name": (request.data.get("name") or "").strip(),
+            "company_name": (request.data.get("company_name") or "").strip(),
+            "email": (request.data.get("email") or "").strip(),
+            "client_status": request.data.get("client_status") or Lead.ClientStatus.FIRST_TIME,
+            "source": "manual",
+        }
+        lead, created = Lead.objects.get_or_create(phone_number=phone_number, defaults=lead_fields)
+        if not created:
+            for field, value in lead_fields.items():
+                if value and field != "source":
+                    setattr(lead, field, value)
+            lead.save()
+
+        chat, chat_created = Chat.objects.get_or_create(
             lead=lead, defaults={"assigned_user": request.user, "status": Chat.Status.IN_PROGRESS}
         )
-        if not created and chat.assigned_user_id is None:
+        if not chat_created and chat.assigned_user_id is None:
             chat.assigned_user = request.user
             chat.status = Chat.Status.IN_PROGRESS
             chat.save(update_fields=["assigned_user", "status"])

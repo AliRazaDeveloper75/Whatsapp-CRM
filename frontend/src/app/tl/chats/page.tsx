@@ -1,24 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState, type SubmitEvent } from "react";
-import { Send, UserPlus } from "lucide-react";
+import { Send } from "lucide-react";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { DeliveryIcon } from "@/components/ui/DeliveryIcon";
 import { formatTime } from "@/lib/format";
-import type { ChatRow, ChatDetail, UserRow } from "@/types/admin";
+import type { ChatRow, ChatDetail } from "@/types/admin";
 
 export default function TLChatsPage() {
   const [chats, setChats] = useState<ChatRow[]>([]);
-  const [agents, setAgents] = useState<UserRow[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [activeChat, setActiveChat] = useState<ChatDetail | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [showNewChat, setShowNewChat] = useState(false);
-  const [newContact, setNewContact] = useState({ name: "", phone_number: "" });
-  const [starting, setStarting] = useState(false);
 
   const loadChats = useCallback(() => {
     api.get<ChatRow[]>("/chats/").then((res) => {
@@ -27,20 +23,9 @@ export default function TLChatsPage() {
     });
   }, []);
 
-  useEffect(() => {
-    api.get<UserRow[]>("/agents/").then((res) => setAgents(res.data));
-  }, []);
-
   const loadActive = useCallback((id: number) => {
     api.get<ChatDetail>(`/chats/${id}/`).then((res) => setActiveChat(res.data));
   }, []);
-
-  async function reassign(userId: number | null) {
-    if (!activeId) return;
-    const res = await api.post<ChatRow>(`/chats/${activeId}/assign/`, { user_id: userId });
-    setChats((prev) => prev.map((c) => (c.id === res.data.id ? res.data : c)));
-    loadActive(activeId);
-  }
 
   useEffect(() => {
     loadChats();
@@ -56,21 +41,6 @@ export default function TLChatsPage() {
     api.post(`/chats/${activeId}/mark_read/`).catch(() => {});
     return () => clearInterval(t);
   }, [activeId, loadActive]);
-
-  async function startChat(e: SubmitEvent) {
-    e.preventDefault();
-    if (!newContact.phone_number.trim()) return;
-    setStarting(true);
-    try {
-      const res = await api.post<ChatRow>("/chats/start/", newContact);
-      setChats((prev) => [res.data, ...prev.filter((c) => c.id !== res.data.id)]);
-      setActiveId(res.data.id);
-      setNewContact({ name: "", phone_number: "" });
-      setShowNewChat(false);
-    } finally {
-      setStarting(false);
-    }
-  }
 
   async function sendReply(e: SubmitEvent) {
     e.preventDefault();
@@ -105,44 +75,6 @@ export default function TLChatsPage() {
         }}
       >
         <div className="flex w-72 shrink-0 flex-col overflow-y-auto border-r" style={{ borderColor: "var(--border)" }}>
-          <div className="p-3">
-            <button
-              onClick={() => setShowNewChat((v) => !v)}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-xs font-medium transition-colors hover:opacity-80"
-              style={{ borderColor: "var(--border)", color: "var(--teal-strong)" }}
-            >
-              <UserPlus size={13} />
-              New chat
-            </button>
-            {showNewChat && (
-              <form onSubmit={startChat} className="mt-2 flex flex-col gap-1.5">
-                <input
-                  value={newContact.name}
-                  onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
-                  placeholder="Name (optional)"
-                  className="w-full rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-[var(--teal)]"
-                  style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
-                />
-                <input
-                  value={newContact.phone_number}
-                  onChange={(e) => setNewContact({ ...newContact, phone_number: e.target.value })}
-                  placeholder="Phone number"
-                  className="w-full rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-[var(--teal)]"
-                  style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={starting || !newContact.phone_number.trim()}
-                  className="w-full rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, var(--teal), var(--indigo))" }}
-                >
-                  {starting ? "Starting…" : "Start chat"}
-                </button>
-              </form>
-            )}
-          </div>
-
           {chats.length === 0 && (
             <p className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-faint)" }}>
               No chats yet.
@@ -198,19 +130,6 @@ export default function TLChatsPage() {
                     {activeChat.assigned_user_username ? ` · assigned to ${activeChat.assigned_user_username}` : ""}
                   </p>
                 </div>
-                <select
-                  value={activeChat.assigned_user ?? ""}
-                  onChange={(e) => reassign(e.target.value ? Number(e.target.value) : null)}
-                  className="rounded-lg border px-2 py-1.5 text-xs outline-none focus:border-[var(--teal)]"
-                  style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
-                >
-                  <option value="">Unassigned</option>
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.username}
-                    </option>
-                  ))}
-                </select>
                 <StatusPill status={activeChat.status} />
               </div>
 

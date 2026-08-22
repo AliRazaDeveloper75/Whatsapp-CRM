@@ -11,9 +11,18 @@ export type UserRow = {
   team_lead_username: string | null;
 };
 
+export type ClientStatus = "first_time" | "follow_up" | "existing_client";
+
 export type ChatRow = {
   id: number;
-  lead: { id: number; name: string; phone_number: string };
+  lead: {
+    id: number;
+    name: string;
+    company_name: string;
+    email: string;
+    phone_number: string;
+    client_status: ClientStatus;
+  };
   assigned_user: number | null;
   assigned_user_username: string | null;
   status: string;

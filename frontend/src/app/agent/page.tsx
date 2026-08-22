@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Send, UserPlus } from "lucide-react";
+import { LogOut, Send } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
@@ -20,9 +20,6 @@ export default function AgentPage() {
   const [activeChat, setActiveChat] = useState<ChatDetail | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [showNewChat, setShowNewChat] = useState(false);
-  const [newContact, setNewContact] = useState({ name: "", phone_number: "" });
-  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -49,21 +46,6 @@ export default function AgentPage() {
     const t = setInterval(() => loadActive(activeId), 4000);
     return () => clearInterval(t);
   }, [activeId, loadActive]);
-
-  async function startChat(e: SubmitEvent) {
-    e.preventDefault();
-    if (!newContact.phone_number.trim()) return;
-    setStarting(true);
-    try {
-      const res = await api.post<ChatSummary>("/chats/start/", newContact);
-      setChats((prev) => [res.data, ...prev.filter((c) => c.id !== res.data.id)]);
-      setActiveId(res.data.id);
-      setNewContact({ name: "", phone_number: "" });
-      setShowNewChat(false);
-    } finally {
-      setStarting(false);
-    }
-  }
 
   async function sendReply(e: SubmitEvent) {
     e.preventDefault();
@@ -110,44 +92,6 @@ export default function AgentPage() {
           >
             <LogOut size={15} />
           </button>
-        </div>
-
-        <div className="px-3 pt-3">
-          <button
-            onClick={() => setShowNewChat((v) => !v)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-xs font-medium transition-colors hover:opacity-80"
-            style={{ borderColor: "var(--border)", color: "var(--teal-strong)" }}
-          >
-            <UserPlus size={13} />
-            New chat
-          </button>
-          {showNewChat && (
-            <form onSubmit={startChat} className="mt-2 flex flex-col gap-1.5">
-              <input
-                value={newContact.name}
-                onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
-                placeholder="Name (optional)"
-                className="w-full rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-[var(--teal)]"
-                style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
-              />
-              <input
-                value={newContact.phone_number}
-                onChange={(e) => setNewContact({ ...newContact, phone_number: e.target.value })}
-                placeholder="Phone number"
-                className="w-full rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-[var(--teal)]"
-                style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
-                required
-              />
-              <button
-                type="submit"
-                disabled={starting || !newContact.phone_number.trim()}
-                className="w-full rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, var(--teal), var(--indigo))" }}
-              >
-                {starting ? "Starting…" : "Start chat"}
-              </button>
-            </form>
-          )}
         </div>
 
         {chats.length === 0 && (

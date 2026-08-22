@@ -21,7 +21,17 @@ class LeadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lead
-        fields = ["id", "name", "phone_number", "source", "tags", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "company_name",
+            "email",
+            "phone_number",
+            "source",
+            "client_status",
+            "tags",
+            "created_at",
+        ]
 
 
 class ChatSerializer(serializers.ModelSerializer):
