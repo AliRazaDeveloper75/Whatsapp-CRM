@@ -3,20 +3,17 @@
 import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, LayoutDashboard, LogOut, Headset, MessageCircle, ShieldAlert, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, MessageCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { CopyGuard } from "@/components/CopyGuard";
 import { Logo } from "@/components/ui/Logo";
 
 const NAV_ITEMS = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/leads", label: "Leads", icon: Inbox },
-  { href: "/admin/chats", label: "Chats", icon: MessageCircle },
-  { href: "/admin/agents", label: "Agent", icon: Headset },
-  { href: "/admin/users", label: "Total Users", icon: Users },
-  { href: "/admin/violations", label: "Violations", icon: ShieldAlert },
+  { href: "/tl", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/tl/chats", label: "Chats", icon: MessageCircle },
 ];
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default function TLLayout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -24,13 +21,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
     if (!user) router.push("/login");
-    else if (user.role !== "admin") router.push("/agent");
+    else if (user.role !== "tl") router.push(user.role === "admin" ? "/admin" : "/agent");
   }, [loading, user, router]);
 
-  if (loading || !user || user.role !== "admin") return null;
+  if (loading || !user || user.role !== "tl") return null;
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
+      <CopyGuard />
       <aside
         className="flex w-60 shrink-0 flex-col border-r px-3 py-4"
         style={{ borderColor: "var(--border)", background: "var(--surface)" }}
@@ -43,9 +41,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </p>
             <p
               className="font-mono text-[10px] font-medium uppercase leading-tight tracking-[0.14em]"
-              style={{ color: "var(--indigo)" }}
+              style={{ color: "var(--teal-strong)" }}
             >
-              admin console
+              team lead console
             </p>
           </div>
         </div>
@@ -60,7 +58,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
                 style={
                   isActive
-                    ? { background: "var(--indigo-soft)", color: "var(--indigo)" }
+                    ? { background: "var(--teal-soft)", color: "var(--teal-strong)" }
                     : { color: "var(--text-muted)" }
                 }
               >
@@ -74,7 +72,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-3 rounded-lg px-2 py-2" style={{ borderTop: "1px solid var(--border)" }}>
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
-            style={{ background: "var(--indigo-soft)", color: "var(--indigo)" }}
+            style={{ background: "var(--teal-soft)", color: "var(--teal-strong)" }}
           >
             {user.username.slice(0, 1).toUpperCase()}
           </div>

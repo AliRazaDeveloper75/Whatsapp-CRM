@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { tokenStorage } from "@/lib/tokenStorage";
 
-export type Role = "admin" | "agent";
+export type Role = "admin" | "tl" | "agent";
 
 export type User = {
   id: number;
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokenStorage.save(res.data.access, res.data.refresh, remember);
     const me = await api.get<User>("/me/");
     setUser(me.data);
-    router.push(me.data.role === "admin" ? "/admin" : "/agent");
+    router.push(me.data.role === "admin" ? "/admin" : me.data.role === "tl" ? "/tl" : "/agent");
   }
 
   function logout() {

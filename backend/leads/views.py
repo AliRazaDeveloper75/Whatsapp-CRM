@@ -1,23 +1,29 @@
 import requests
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from accounts.permissions import IsAdmin
+from accounts.models import User
 
 from .models import Chat, Lead, Message, Tag
 from .serializers import ChatDetailSerializer, ChatSerializer, LeadSerializer, MessageSerializer, TagSerializer
 from .services import send_whatsapp_text
 
 
-class IsAdminOrOwnChat(permissions.BasePermission):
-    """Admin: full access. Agent: only chats assigned to them."""
+class IsAdminOrTLOrOwnChat(permissions.BasePermission):
+    """Admin: full access. TL: chats owned by their team. Agent: only chats assigned to them."""
 
     def has_object_permission(self, request, view, obj):
-        if request.user.role == "admin":
+        user = request.user
+        if user.role == "admin":
             return True
-        return obj.assigned_user_id == request.user.id
+        if user.role == "tl":
+            return obj.assigned_user_id == user.id or (
+                obj.assigned_user_id is not None and obj.assigned_user.team_lead_id == user.id
+            )
+        return obj.assigned_user_id == user.id
 
 
 class TagViewSet(viewsets.ModelViewSet):
@@ -33,13 +39,15 @@ class LeadViewSet(viewsets.ModelViewSet):
 
 
 class ChatViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrOwnChat]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrTLOrOwnChat]
 
     def get_queryset(self):
         user = self.request.user
         qs = Chat.objects.select_related("lead", "assigned_user")
         if user.role == "admin":
             return qs
+        if user.role == "tl":
+            return qs.filter(Q(assigned_user=user) | Q(assigned_user__team_lead=user))
         return qs.filter(assigned_user=user)
 
     def get_serializer_class(self):
@@ -55,15 +63,46 @@ class ChatViewSet(viewsets.ModelViewSet):
         chat.save(update_fields=["last_read_at"])
         return Response(ChatSerializer(chat).data)
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdmin])
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
     def assign(self, request, pk=None):
-        """Admin-only: assign (or unassign with user_id=null) a chat to an agent."""
+        """Admin: assign to anyone. Team Lead: assign within their own team only."""
         chat = self.get_object()
+        user = request.user
         user_id = request.data.get("user_id")
+
+        if user.role not in ("admin", "tl"):
+            return Response({"detail": "Not allowed."}, status=403)
+
+        if user.role == "tl" and user_id:
+            in_team = User.objects.filter(id=user_id).filter(Q(id=user.id) | Q(team_lead=user)).exists()
+            if not in_team:
+                return Response({"detail": "Can only assign chats within your own team."}, status=403)
+
         chat.assigned_user_id = user_id
         chat.status = Chat.Status.IN_PROGRESS if user_id else Chat.Status.UNASSIGNED
         chat.save(update_fields=["assigned_user", "status"])
         return Response(ChatSerializer(chat).data)
+
+    @action(detail=False, methods=["post"])
+    def start(self, request):
+        """Agent/TL: add a new contact and start (or claim) its chat."""
+        phone_number = (request.data.get("phone_number") or "").strip()
+        name = (request.data.get("name") or "").strip()
+        if not phone_number:
+            return Response({"detail": "phone_number is required."}, status=400)
+
+        lead, _ = Lead.objects.get_or_create(
+            phone_number=phone_number, defaults={"name": name, "source": "manual"}
+        )
+        chat, created = Chat.objects.get_or_create(
+            lead=lead, defaults={"assigned_user": request.user, "status": Chat.Status.IN_PROGRESS}
+        )
+        if not created and chat.assigned_user_id is None:
+            chat.assigned_user = request.user
+            chat.status = Chat.Status.IN_PROGRESS
+            chat.save(update_fields=["assigned_user", "status"])
+
+        return Response(ChatSerializer(chat).data, status=201)
 
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -75,6 +114,8 @@ class MessageViewSet(viewsets.ModelViewSet):
         qs = Message.objects.select_related("chat")
         if user.role == "admin":
             return qs
+        if user.role == "tl":
+            return qs.filter(Q(chat__assigned_user=user) | Q(chat__assigned_user__team_lead=user))
         return qs.filter(chat__assigned_user=user)
 
     def perform_create(self, serializer):

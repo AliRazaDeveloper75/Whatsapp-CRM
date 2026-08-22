@@ -9,7 +9,8 @@ import type { UserRow } from "@/types/admin";
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<UserRow[]>([]);
-  const [newAgent, setNewAgent] = useState({ username: "", email: "", password: "" });
+  const [teamLeads, setTeamLeads] = useState<UserRow[]>([]);
+  const [newAgent, setNewAgent] = useState({ username: "", email: "", password: "", team_lead: "" });
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -23,13 +24,20 @@ export default function AgentsPage() {
     return () => clearInterval(t);
   }, [loadAgents]);
 
+  useEffect(() => {
+    api.get<UserRow[]>("/users/").then((res) => setTeamLeads(res.data.filter((u) => u.role === "tl")));
+  }, []);
+
   async function createAgent(e: SubmitEvent) {
     e.preventDefault();
     setCreating(true);
     setFormError("");
     try {
-      await api.post("/agents/", newAgent);
-      setNewAgent({ username: "", email: "", password: "" });
+      await api.post("/agents/", {
+        ...newAgent,
+        team_lead: newAgent.team_lead ? Number(newAgent.team_lead) : null,
+      });
+      setNewAgent({ username: "", email: "", password: "", team_lead: "" });
       loadAgents();
     } catch {
       setFormError("Could not create agent — check the fields.");
@@ -70,6 +78,7 @@ export default function AgentsPage() {
                 </p>
                 <p className="truncate text-xs" style={{ color: "var(--text-faint)" }}>
                   {a.email || "no email"}
+                  {a.team_lead_username ? ` · reports to ${a.team_lead_username}` : ""}
                 </p>
               </div>
               <StatusPill status={a.status} />
@@ -120,10 +129,23 @@ export default function AgentsPage() {
             type="password"
             value={newAgent.password}
             onChange={(e) => setNewAgent({ ...newAgent, password: e.target.value })}
-            className="mb-3 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-[var(--indigo)]"
+            className="mb-2 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-[var(--indigo)]"
             style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
             required
           />
+          <select
+            value={newAgent.team_lead}
+            onChange={(e) => setNewAgent({ ...newAgent, team_lead: e.target.value })}
+            className="mb-3 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-[var(--indigo)]"
+            style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
+          >
+            <option value="">No team lead</option>
+            {teamLeads.map((tl) => (
+              <option key={tl.id} value={tl.id}>
+                {tl.username}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
             disabled={creating}

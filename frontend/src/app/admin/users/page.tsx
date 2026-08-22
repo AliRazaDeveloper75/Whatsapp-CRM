@@ -5,26 +5,35 @@ import { UserPlus } from "lucide-react";
 import { api } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill } from "@/components/ui/StatusPill";
-import type { UserRow } from "@/types/admin";
+import type { Role, UserRow } from "@/types/admin";
 
-function RoleBadge({ role }: { role: "admin" | "agent" }) {
-  const style =
-    role === "admin"
-      ? { color: "var(--indigo)", background: "var(--indigo-soft)" }
-      : { color: "var(--teal-strong)", background: "var(--teal-soft)" };
+const ROLE_LABELS: Record<Role, string> = { admin: "Admin", tl: "Team Lead", agent: "Agent" };
+const ROLE_STYLES: Record<Role, { color: string; background: string }> = {
+  admin: { color: "var(--indigo)", background: "var(--indigo-soft)" },
+  tl: { color: "var(--warning)", background: "var(--warning-soft)" },
+  agent: { color: "var(--teal-strong)", background: "var(--teal-soft)" },
+};
+
+function RoleBadge({ role }: { role: Role }) {
   return (
     <span
-      style={style}
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize"
+      style={ROLE_STYLES[role]}
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
     >
-      {role}
+      {ROLE_LABELS[role]}
     </span>
   );
 }
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [newUser, setNewUser] = useState({ username: "", email: "", password: "", role: "agent" });
+  const [newUser, setNewUser] = useState({
+    username: "",
+    email: "",
+    password: "",
+    role: "agent" as Role,
+    team_lead: "",
+  });
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -38,13 +47,18 @@ export default function UsersPage() {
     return () => clearInterval(t);
   }, [loadUsers]);
 
+  const teamLeads = users.filter((u) => u.role === "tl");
+
   async function createUser(e: SubmitEvent) {
     e.preventDefault();
     setCreating(true);
     setFormError("");
     try {
-      await api.post("/users/", newUser);
-      setNewUser({ username: "", email: "", password: "", role: "agent" });
+      await api.post("/users/", {
+        ...newUser,
+        team_lead: newUser.role === "agent" && newUser.team_lead ? Number(newUser.team_lead) : null,
+      });
+      setNewUser({ username: "", email: "", password: "", role: "agent", team_lead: "" });
       loadUsers();
     } catch {
       setFormError("Could not create user — check the fields.");
@@ -85,6 +99,7 @@ export default function UsersPage() {
                 </p>
                 <p className="truncate text-xs" style={{ color: "var(--text-faint)" }}>
                   {u.email || "no email"}
+                  {u.role === "agent" && u.team_lead_username ? ` · reports to ${u.team_lead_username}` : ""}
                 </p>
               </div>
               <RoleBadge role={u.role} />
@@ -121,13 +136,35 @@ export default function UsersPage() {
           </label>
           <select
             value={newUser.role}
-            onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as Role })}
             className="mb-2 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-[var(--indigo)]"
             style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
           >
             <option value="agent">Agent</option>
+            <option value="tl">Team Lead</option>
             <option value="admin">Admin</option>
           </select>
+
+          {newUser.role === "agent" && (
+            <>
+              <label className="mb-1 block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Team Lead
+              </label>
+              <select
+                value={newUser.team_lead}
+                onChange={(e) => setNewUser({ ...newUser, team_lead: e.target.value })}
+                className="mb-2 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-[var(--indigo)]"
+                style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text)" }}
+              >
+                <option value="">No team lead</option>
+                {teamLeads.map((tl) => (
+                  <option key={tl.id} value={tl.id}>
+                    {tl.username}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
 
           <input
             placeholder="Username"

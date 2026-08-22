@@ -1,22 +1,27 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import User
+from .models import ActivityViolation, User
 
 
 class UserSerializer(serializers.ModelSerializer):
+    team_lead_username = serializers.CharField(source="team_lead.username", read_only=True, default=None)
+
     class Meta:
         model = User
-        fields = ["id", "username", "email", "role", "status", "phone_number"]
+        fields = ["id", "username", "email", "role", "status", "phone_number", "team_lead", "team_lead_username"]
         read_only_fields = ["id"]
 
 
 class AgentCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    team_lead = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=User.Role.TL), required=False, allow_null=True
+    )
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "password", "phone_number"]
+        fields = ["id", "username", "email", "password", "phone_number", "team_lead"]
 
     def create(self, validated_data):
         password = validated_data.pop("password")
@@ -27,13 +32,16 @@ class AgentCreateSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """Admin-only: create a user of any role (admin or agent)."""
+    """Admin-only: create a user of any role (admin, team lead, or agent)."""
 
     password = serializers.CharField(write_only=True)
+    team_lead = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=User.Role.TL), required=False, allow_null=True
+    )
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "password", "role", "phone_number"]
+        fields = ["id", "username", "email", "password", "role", "phone_number", "team_lead"]
 
     def create(self, validated_data):
         password = validated_data.pop("password")
@@ -41,6 +49,15 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+
+class ActivityViolationSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = ActivityViolation
+        fields = ["id", "user", "username", "action", "path", "created_at"]
+        read_only_fields = ["id", "user", "username", "created_at"]
 
 
 class CRMTokenObtainPairSerializer(TokenObtainPairSerializer):

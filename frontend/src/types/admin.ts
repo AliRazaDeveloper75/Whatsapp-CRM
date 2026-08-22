@@ -1,10 +1,14 @@
+export type Role = "admin" | "tl" | "agent";
+
 export type UserRow = {
   id: number;
   username: string;
   email: string;
-  role: "admin" | "agent";
+  role: Role;
   status: string;
   phone_number: string;
+  team_lead: number | null;
+  team_lead_username: string | null;
 };
 
 export type ChatRow = {
@@ -27,3 +31,12 @@ export type Message = {
 };
 
 export type ChatDetail = ChatRow & { messages: Message[] };
+
+export type Violation = {
+  id: number;
+  user: number;
+  username: string;
+  action: "copy" | "right_click";
+  path: string;
+  created_at: string;
+};

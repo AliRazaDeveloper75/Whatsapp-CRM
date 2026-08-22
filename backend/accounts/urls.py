@@ -2,11 +2,12 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import AgentViewSet, CRMTokenObtainPairView, MeView, UserListViewSet
+from .views import ActivityViolationViewSet, AgentViewSet, CRMTokenObtainPairView, MeView, UserListViewSet
 
 router = DefaultRouter()
 router.register("agents", AgentViewSet, basename="agent")
 router.register("users", UserListViewSet, basename="user")
+router.register("violations", ActivityViolationViewSet, basename="violation")
 
 urlpatterns = [
     path("auth/login/", CRMTokenObtainPairView.as_view(), name="token_obtain_pair"),

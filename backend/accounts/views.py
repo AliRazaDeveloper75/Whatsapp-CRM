@@ -3,9 +3,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import User
-from .permissions import IsAdmin
-from .serializers import AgentCreateSerializer, CRMTokenObtainPairSerializer, UserCreateSerializer, UserSerializer
+from .models import ActivityViolation, User
+from .permissions import IsAdmin, IsTL
+from .serializers import (
+    ActivityViolationSerializer,
+    AgentCreateSerializer,
+    CRMTokenObtainPairSerializer,
+    UserCreateSerializer,
+    UserSerializer,
+)
 
 
 class CRMTokenObtainPairView(TokenObtainPairView):
@@ -20,10 +26,18 @@ class MeView(APIView):
 
 
 class AgentViewSet(viewsets.ModelViewSet):
-    """Admin-only: create and manage agent accounts."""
+    """Admin: manage any agent. Team Lead: read-only view of their own team's agents."""
 
-    queryset = User.objects.filter(role=User.Role.AGENT)
-    permission_classes = [IsAdmin]
+    def get_queryset(self):
+        qs = User.objects.filter(role=User.Role.AGENT)
+        if self.request.user.role == User.Role.TL:
+            return qs.filter(team_lead=self.request.user)
+        return qs
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [permissions.IsAuthenticated(), (IsAdmin | IsTL)()]
+        return [IsAdmin()]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -41,3 +55,19 @@ class UserListViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return UserCreateSerializer
         return UserSerializer
+
+
+class ActivityViolationViewSet(viewsets.ModelViewSet):
+    """Agents/TLs report blocked copy/right-click attempts here; admin reviews them."""
+
+    http_method_names = ["get", "post"]
+    queryset = ActivityViolation.objects.select_related("user").all()
+    serializer_class = ActivityViolationSerializer
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [permissions.IsAuthenticated()]
+        return [IsAdmin()]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
